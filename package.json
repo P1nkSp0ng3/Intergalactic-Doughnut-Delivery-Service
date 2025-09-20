@@ -1,0 +1,14 @@
+{
+  "name": "intergalactic-dougnut-delivery-service",
+  "version": "1.0.0",
+  "description": "An intergalactic donught shop that serves treats described as tasting \"out of this world\". We cater for humans and aliens alike!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Christopher Richardson (MEng, CTM)",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
