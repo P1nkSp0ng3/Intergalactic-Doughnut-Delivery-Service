@@ -4,11 +4,15 @@
   "description": "An intergalactic donught shop that serves treats described as tasting \"out of this world\". We cater for humans and aliens alike!",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
   },
   "author": "Christopher Richardson (MEng, CTM)",
   "license": "ISC",
   "dependencies": {
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
