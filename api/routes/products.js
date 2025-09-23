@@ -8,8 +8,13 @@ router.get('/', (req, res, next) => { // handle GET requests to /products via an
 });
 
 router.post('/', (req, res, next) => { // handle POST requests to /products
+    const product = {
+        name: req.body.name, // pull data from request body (via body property)
+        price: req.body.price
+    };
     res.status(201).json({
-        message: 'Handling POST calls to /products'
+        message: 'Handling POST calls to /products',
+        createdProduct: product
     });
 });
 

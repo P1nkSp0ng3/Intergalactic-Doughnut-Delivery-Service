@@ -10,8 +10,8 @@ const orderRoutes = require('./api/routes/orders');
 app.use(morgan('dev'));
 
 // request body parsing middleware(s)
-app.use(express.urlencoded({ extended: true })); // parse URL encoded data in incoming request bodies
-app.use(express.json()); // parse JSON data in incoming request bodies
+app.use(express.urlencoded({ extended: false })); // parse URL encoded data from incoming request bodies
+app.use(express.json()); // parse JSON data from incoming request bodies
 
 // API endpoint middleware(s)
 app.use('/health', healthRoutes);
@@ -20,7 +20,7 @@ app.use('/orders', orderRoutes);
 
 // error handling middleware(s)
 app.use((req, res, next) => { // 404 error handling middleware
-    const error = new Error('Not found! It appears you are lost... The doughnuts are that way...');
+    const error = new Error('Not found! It appears you are lost... The doughnuts are elsewhere...');
     error.status = 404;
     next(error);
 });
