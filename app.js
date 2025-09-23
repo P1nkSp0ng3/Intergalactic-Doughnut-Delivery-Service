@@ -13,6 +13,18 @@ app.use(morgan('dev'));
 app.use(express.urlencoded({ extended: false })); // parse URL encoded data from incoming request bodies
 app.use(express.json()); // parse JSON data from incoming request bodies
 
+// CORS Middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Methods', 'GET POST PUT PATCH DELETE');
+        return res.status(200).json({}); // return an empty JSON object and terminate execution
+    } else {
+        next();
+    }
+});
+
 // API endpoint middleware(s)
 app.use('/health', healthRoutes);
 app.use('/products', productRoutes);
@@ -20,7 +32,7 @@ app.use('/orders', orderRoutes);
 
 // error handling middleware(s)
 app.use((req, res, next) => { // 404 error handling middleware
-    const error = new Error('Not found! It appears you are lost... The doughnuts are elsewhere...');
+    const error = new Error("It appears you're lost... The doughnuts are elsewhere...");
     error.status = 404;
     next(error);
 });
