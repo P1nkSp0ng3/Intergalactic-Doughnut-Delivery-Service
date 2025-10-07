@@ -1,9 +1,20 @@
 const express = require('express');
 const router = express.Router();
+const db = require('../database/connection');
 
 router.get('/', (req, res, next) => { // handle GET requests to /products via an arrow function (to define an anonymous function)
-    res.status(200).json({
-        message: 'Handling GET calls to /products'
+    db.query('SELECT * FROM products', (error, results) => {
+        if (error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        console.log('Query results:', results); // return data in console
+        res.status(200).json({
+            message: 'Handling GET calls to /products',
+            products: results
+        });
     });
 });
 
