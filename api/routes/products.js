@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 
-router.get('/', (req, res, next) => { // handle GET requests to /products via an arrow function (to define an anonymous function)
-    db.query('SELECT * FROM products', (error, results) => {
+router.get('/', (req, res, next) => { // view all products route handler (uses an arrow function (to define an anonymous function))
+    const query = `SELECT * FROM products`;
+    db.query(query, (error, results) => {
         if (error) {
             console.error('Database error:', error.sqlMessage);
             return res.status(500).json({
@@ -18,14 +19,27 @@ router.get('/', (req, res, next) => { // handle GET requests to /products via an
     });
 });
 
-router.post('/', (req, res, next) => { // handle POST requests to /products
+router.post('/', (req, res, next) => { // create new product route handler
     const product = {
         name: req.body.name, // pull data from request body (via body property)
-        price: req.body.price
+        description: req.body.description,
+        price: req.body.price,
+        stock: req.body.stock
     };
-    res.status(201).json({
-        message: 'Handling POST calls to /products',
-        createdProduct: product
+    const query = `INSERT INTO products (name, description, price, stock) VALUES ('${product.name}', '${product.description}', '${product.price}', '${product.stock}')`
+    db.query(query, (error, results) => {
+        if (error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        console.log('Query results:', results); // return query results in console
+        product.id = results.insertId;
+        res.status(201).json({
+            message: 'Handling POST calls to /products',
+            createdProduct: product
+        });
     });
 });
 
