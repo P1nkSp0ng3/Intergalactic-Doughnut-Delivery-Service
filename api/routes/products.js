@@ -61,6 +61,36 @@ router.get('/random', (req, res, next) => { // list a random product route handl
     });
 });
 
+router.get('/search', (req, res, next) => { // search for a product route handle
+    const searchTerm = req.query.term; // pull value from 'term' URL parameter
+    if(!searchTerm) {
+        return res.status(400).json({
+            message: "Please enter the name of doughnut you want to search for!"
+        });
+    }
+    const likeTerm = `%${searchTerm}%`;
+    const query = `SELECT * FROM products WHERE name LIKE "${likeTerm}" OR description LIKE "${likeTerm}" LIMIT 10`;
+    db.query(query, (error, results) => {
+        if (error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        console.log('Query results:', results); // return data in console
+        if (results.length === 0) {
+            return res.status(404).json({
+                message: 'No doughnuts found! :('
+            });
+        } else {
+            res.status(200).json({
+                message: `Search results for ${searchTerm}`,
+                products: results
+            });
+        }
+    });
+});
+
 router.get('/:productId', (req, res, next) => { // view a specific product route handle
     //const productId = req.params.productId;
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object
@@ -91,13 +121,20 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
     });
 });
 
-// search for a product route handle
+
+
+
+
+
 
 router.patch('/:productId', (req, res, next) => { // update a product route handle
     res.status(200).json({
         message: 'Product updated!'
     });
 });
+
+
+
 
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
     res.status(200).json({
