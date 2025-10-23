@@ -4,7 +4,7 @@ const db = require('../database/connection');
 
 router.get('/', (req, res, next) => { // view all products route handler (uses an arrow function (to define an anonymous function))
     const query = `SELECT * FROM products`;
-    db.query(query, (error, results) => {
+    db.query(query, (error, results) => { // execute the query
         if (error) {
             console.error('Database error:', error.sqlMessage);
             return res.status(500).json({
@@ -45,16 +45,20 @@ router.post('/', (req, res, next) => { // create new product route handler
 
 router.get('/:productId', (req, res, next) => { // handle GET requests to /products/:id
     const productId = req.params.productId; // pull the productId from the URL parameters using the params object
-    if (productId === 'special') {
+    const query = `SELECT * FROM products WHERE id=${productId}`;
+    db.query(query, (error, results) => {
+        if(error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        console.log('Query results:', results); // return data in console
         res.status(200).json({
-            id: productId,
-            message: 'Special product'
+            message: 'You searched for product with an id of: ' + productId,
+            product: results
         });
-    } else {
-        res.status(200).json({
-            message: 'You searched for product with an id of: ' + productId
-        });
-    }
+    });
 });
 
 router.patch('/:productId', (req, res, next) => { // handle PATCH requests to /products/:id
