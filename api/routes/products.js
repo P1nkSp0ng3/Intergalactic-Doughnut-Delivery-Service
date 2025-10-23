@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 
-router.get('/', (req, res, next) => { // view all products route handler (uses an arrow function (to define an anonymous function))
+router.get('/', (req, res, next) => { // list all products route handler (uses an arrow function (to define an anonymous function))
     const query = `SELECT * FROM products`;
     db.query(query, (error, results) => { // execute the query
         if (error) {
@@ -43,7 +43,25 @@ router.post('/', (req, res, next) => { // create new product route handler
     });
 });
 
-router.get('/:productId', (req, res, next) => { // handle GET requests to /products/:id
+router.get('/random', (req, res, next) => { // list a random product route handle
+    const query = `SELECT * FROM products`;
+    db.query(query, (error, results) => {
+        if (error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        const randomIndex = Math.floor(Math.random() * results.length);
+        console.log('Query results:', results[randomIndex]); // return data in console
+        res.status(200).json({
+            message: 'Handling GET calls to /products/random',
+            products: results[randomIndex]
+        });
+    });
+});
+
+router.get('/:productId', (req, res, next) => { // view a specific product route handle
     //const productId = req.params.productId;
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object
     if (Number.isNaN(productId)) {
@@ -73,13 +91,15 @@ router.get('/:productId', (req, res, next) => { // handle GET requests to /produ
     });
 });
 
-router.patch('/:productId', (req, res, next) => { // handle PATCH requests to /products/:id
+// search for a product route handle
+
+router.patch('/:productId', (req, res, next) => { // update a product route handle
     res.status(200).json({
         message: 'Product updated!'
     });
 });
 
-router.delete('/:productId', (req, res, next) => { // handle DELETE requests to /products/:id
+router.delete('/:productId', (req, res, next) => { // delete a product route handle
     res.status(200).json({
         message: 'Product deleted!'
     });
