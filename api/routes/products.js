@@ -44,7 +44,13 @@ router.post('/', (req, res, next) => { // create new product route handler
 });
 
 router.get('/:productId', (req, res, next) => { // handle GET requests to /products/:id
-    const productId = req.params.productId; // pull the productId from the URL parameters using the params object
+    //const productId = req.params.productId;
+    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object
+    if (Number.isNaN(productId)) {
+        return res.status(400).json({
+            error: 'Please enter a valid doughnut ID value!'
+        });
+    }
     const query = `SELECT * FROM products WHERE id=${productId}`;
     db.query(query, (error, results) => {
         if(error) {
@@ -54,10 +60,16 @@ router.get('/:productId', (req, res, next) => { // handle GET requests to /produ
             });
         }
         console.log('Query results:', results); // return data in console
-        res.status(200).json({
-            message: 'You searched for product with an id of: ' + productId,
-            product: results
-        });
+        if (results.length === 0) {
+            return res.status(404).json({
+                message: 'Doughnut not found! :('
+            });
+        } else {
+            res.status(200).json({
+                message: 'You searched for product with an id of: ' + productId,
+                product: results
+            });
+        }
     });
 });
 
