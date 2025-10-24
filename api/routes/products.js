@@ -92,7 +92,6 @@ router.get('/search', (req, res, next) => { // search for a product route handle
 });
 
 router.get('/:productId', (req, res, next) => { // view a specific product route handle
-    //const productId = req.params.productId;
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object
     if (Number.isNaN(productId)) {
         return res.status(400).json({
@@ -137,8 +136,31 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
 
 
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
-    res.status(200).json({
-        message: 'Product deleted!'
+    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object and parse it as an integer
+    if (Number.isNaN(productId)) { // if Not-a-number, error
+        return res.status(400).json({
+            error: 'Please enter a valid doughnut ID value!'
+        });
+    }
+    const query = `DELETE FROM products WHERE id=${productId}`;
+    db.query(query, (error, results) => {
+        if(error) {
+            console.error('Database error:', error.sqlMessage);
+            return res.status(500).json({
+                error: error
+            });
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({
+                message: 'Doughnut not found...'
+            });
+        } else {
+            console.log('Query results:', results); // return data in console
+            res.status(200).json({
+                message: "Farewell doughnut, live long and prosper",
+                deletedId: productId
+            });
+        }
     });
 });
 
