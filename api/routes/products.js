@@ -6,18 +6,37 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
     const query = `SELECT * FROM products`;
     db.query(query, (error, results) => { // execute the query
         if (error) {
-            console.error('Database error:', error.sqlMessage);
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: error
+                error: 'Houston, we have a problem retrieving the doughnuts!',
+                details: error.sqlMessage
             });
         }
-        console.log('Query results:', results); // return data in console
+        const products = results.map(product => ({ // check product stock by mapping the products into an array
+            ...product, // keep all original columns
+            stock: product.stock === 0 // shorthand if statement using conditional (ternary) operator, overwrites 
+                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                : `🪐 ${product.stock} available for intergalactic delivery`
+        }));
+        console.log('Retrieved products from the Intergalactic Menu:', products); // return data in console
         res.status(200).json({
-            message: 'Handling GET calls to /products',
-            products: results
+            message: 'Welcome to the Intergalactic Doughnut Delivery Service! Feast your eyes on our galactic menu.',
+            count: products.length,
+            galacticInventory: products
         });
     });
 });
+
+
+
+
+
+
+
+
+
+
+
 
 router.post('/', (req, res, next) => { // create new product route handler
     const product = {
@@ -69,7 +88,7 @@ router.get('/search', (req, res, next) => { // search for a product route handle
         });
     }
     const likeTerm = `%${searchTerm}%`;
-    const query = `SELECT * FROM products WHERE name LIKE "${likeTerm}" OR description LIKE "${likeTerm}" LIMIT 10`;
+    const query = `SELECT * FROM products WHERE name LIKE '${likeTerm}' OR description LIKE '${likeTerm}' LIMIT 10`;
     db.query(query, (error, results) => {
         if (error) {
             console.error('Database error:', error.sqlMessage);
@@ -80,6 +99,7 @@ router.get('/search', (req, res, next) => { // search for a product route handle
         console.log('Query results:', results); // return data in console
         if (results.length === 0) {
             return res.status(404).json({
+                searchTerm: 'You searched for ' + searchTerm,
                 message: 'No doughnuts found! :('
             });
         } else {
