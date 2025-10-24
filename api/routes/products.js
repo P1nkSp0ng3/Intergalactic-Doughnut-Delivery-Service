@@ -120,23 +120,57 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
     });
 });
 
-
-
-
-
-
-
 router.patch('/:productId', (req, res, next) => { // update a product route handle
-    res.status(200).json({
-        message: 'Product updated!'
+    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
+    if (Number.isNaN(productId)) { // if Not-a-number, return error
+        return res.status(400).json({
+            error: 'Please enter a valid doughnut ID value!'
+        });
+    }
+    /*const updates = req.body; // grab the request body
+    if (!updates || Object.keys(updates).length === 0) { // if request body is empty, return error
+        return res.status(400).json({
+            error: 'Please provide doughnut details!'
+        });
+    }*/
+    const allowed = ['name', 'description', 'price', 'stock'];
+    const updates = {};
+    for (const key of allowed) {
+        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+            updates[key] = req.body[key];
+        }
+    }
+    if (Object.keys(updates).length === 0) { // if request body is empty, return error
+        return res.status(400).json({
+            error: 'Please provide doughnut details!'
+        });
+    }
+    const setParts = Object.keys(updates).map(k => {
+        return `${k} = '${updates[k]}'`;
+    });
+    const setClause = setParts.join(', ');
+    const query = `UPDATE products SET ${setClause} WHERE id = ${productId}`;
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('DB error:', err && err.sqlMessage ? err.sqlMessage : err);
+            return res.status(500).json({
+                error: 'Database error'
+            });
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({
+                message: 'Product not found'
+            });
+        }
+        return res.status(200).json({
+            message: 'Product updated',
+            updatedFields: updates
+        });
     });
 });
 
-
-
-
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
-    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object and parse it as an integer
+    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
     if (Number.isNaN(productId)) { // if Not-a-number, error
         return res.status(400).json({
             error: 'Please enter a valid doughnut ID value!'
