@@ -3,22 +3,29 @@ const router = express.Router();
 const db = require('../database/connection');
 
 router.get('/', (req, res, next) => { // list all products route handler (uses an arrow function (to define an anonymous function))
-    const query = `SELECT * FROM products`;
+    const query = `SELECT name, description, price, stock FROM products ORDER BY name ASC`;
     db.query(query, (error, results) => { // execute the query
-        if (error) {
+        if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
                 error: 'Houston, we have a problem retrieving the doughnuts!',
                 details: error.sqlMessage
             });
         }
-        const products = results.map(product => ({ // check product stock by mapping the products into an array
-            ...product, // keep all original columns
-            stock: product.stock === 0 // shorthand if statement using conditional (ternary) operator, overwrites 
+        if(!results || results.length === 0) {
+            return res.status(200).json({
+                message: '🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
+                count: 0,
+                galacticInventory: []
+            });
+        }
+        const products = results.map(product => ({ // check product stock code (maps the products into an array for iteration)
+            ...product, // keep all original columns - uses spread syntax to "spread" all key-value pairs from product object into products object
+            stock: product.stock === 0 // shorthand if statement using conditional (ternary) operator (overwrites stock value from database)
                 ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${product.stock} available for intergalactic delivery`
         }));
-        console.log('Retrieved products from the Intergalactic Menu:', products); // return data in console
+        // console.log('Retrieved products from the Intergalactic Menu:', products); // return data in console
         res.status(200).json({
             message: 'Welcome to the Intergalactic Doughnut Delivery Service! Feast your eyes on our galactic menu.',
             count: products.length,
@@ -26,17 +33,6 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
         });
     });
 });
-
-
-
-
-
-
-
-
-
-
-
 
 router.post('/', (req, res, next) => { // create new product route handler
     const product = {
@@ -47,7 +43,7 @@ router.post('/', (req, res, next) => { // create new product route handler
     };
     const query = `INSERT INTO products (name, description, price, stock) VALUES ('${product.name}', '${product.description}', '${product.price}', '${product.stock}')`
     db.query(query, (error, results) => {
-        if (error) {
+        if(error) {
             console.error('Database error:', error.sqlMessage);
             return res.status(500).json({
                 error: error
@@ -63,19 +59,32 @@ router.post('/', (req, res, next) => { // create new product route handler
 });
 
 router.get('/random', (req, res, next) => { // list a random product route handle
-    const query = `SELECT * FROM products`;
+    const query = `SELECT name, description, price, stock FROM products`;
     db.query(query, (error, results) => {
-        if (error) {
-            console.error('Database error:', error.sqlMessage);
+        if(error) {
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: error
+                error: 'Houston, we have a problem retrieving the random doughnut!',
+                details: error.sqlMessage
+            });
+        }
+        if(!results || results.length === 0) {
+            return res.status(200).json({
+                message: '🚫 No doughnuts currently available in this quadrant of space!'
             });
         }
         const randomIndex = Math.floor(Math.random() * results.length);
-        console.log('Query results:', results[randomIndex]); // return data in console
+        const product = results[randomIndex];
+        const randomProduct = {
+            ...product,
+            stock: product.stock === 0
+                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                : `🪐 ${product.stock} available for intergalactic delivery`
+        }
+        // console.log('Retrieved random product from the Intergalactic Menu:', randomProduct.name); // return data in console
         res.status(200).json({
-            message: 'Handling GET calls to /products/random',
-            products: results[randomIndex]
+            message: 'Your cosmic craving chooser has selected a random doughnut for you:',
+            cosmicTreat: randomProduct
         });
     });
 });
