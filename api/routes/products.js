@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 
-// NOT VULNERABLE
+// SAFE
 router.get('/', (req, res, next) => { // list all products route handler (uses an arrow function (to define an anonymous function))
     const query = `SELECT * FROM products`;
     db.query(query, (error, results) => { // execute the query
@@ -22,6 +22,7 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
         }
         const products = results.map(product => ({ // check product stock code (maps the products into an array for iteration)
             ...product, // keep all original columns - uses spread syntax to "spread" all key-value pairs from product object into products object
+            price: '£' + product.price,
             stock: product.stock === 0 // shorthand if statement using conditional (ternary) operator (overwrites stock value from database)
                 ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${product.stock} available for intergalactic delivery`
@@ -35,6 +36,7 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
     });
 });
 
+// ??
 router.post('/', (req, res, next) => { // create new product route handler
     const product = {
         name: req.body.name, // pull data from request body (via body property)
@@ -59,14 +61,14 @@ router.post('/', (req, res, next) => { // create new product route handler
     });
 });
 
-// NOT VULNERABLE
+// SAFE
 router.get('/random', (req, res, next) => { // list a random product route handle
     const query = `SELECT * FROM products`;
     db.query(query, (error, results) => {
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the doughnuts!',
+                announcement: '⚠️ Houston, we have a problem retrieving the random doughnut!',
                 details: error.sqlMessage
             });
         }
@@ -79,6 +81,7 @@ router.get('/random', (req, res, next) => { // list a random product route handl
         const product = results[randomIndex];
         const randomProduct = {
             ...product,
+            price: '£' + product.price,
             stock: product.stock === 0
                 ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${product.stock} available for intergalactic delivery`
@@ -125,35 +128,47 @@ router.get('/search', (req, res, next) => { // search for a product route handle
     });
 });
 
+// SAFE
 router.get('/:productId', (req, res, next) => { // view a specific product route handle
-    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object
-    if (Number.isNaN(productId)) {
+    const productId = parseInt(req.params.productId, 10); // parse supplied productId as integer
+    if(Number.isNaN(productId) || productId <= 0) { // if Not-a-Number (input validation) or less then/equal to 0, error
         return res.status(400).json({
-            error: 'Please enter a valid doughnut ID value!'
+            announcement: '🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
         });
     }
-    const query = `SELECT * FROM products WHERE id=${productId}`;
-    db.query(query, (error, results) => {
+    const query = `SELECT * FROM products WHERE id = ?`; // parameterized (prepared) query
+    db.query(query, [productId], (error, results) => {
         if(error) {
-            console.error('Database error:', error.sqlMessage);
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: error
+                announcement: '⚠️ Houston, we have a problem retrieving the searched doughnut!',
+                details: error.sqlMessage
             });
         }
-        console.log('Query results:', results); // return data in console
-        if (results.length === 0) {
-            return res.status(404).json({
-                message: 'Doughnut not found! :('
-            });
-        } else {
-            res.status(200).json({
-                message: 'You searched for product with an id of: ' + productId,
-                product: results
+        // console.log('Retrieved product from the Intergalactic Menu:', results); // return data in console
+        if(!results || results.length === 0) {
+            return res.status(200).json({
+                announcement: `🔎 The bakers report no doughnut with id ${productId} in this sector.`,
+                count: 0,
+                galacticInventory: []
             });
         }
+        const product = results.map(item => ({
+            ...item,
+            price: '£' + item.price,
+            stock: item.stock === 0
+                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                : `🪐 ${item.stock} available for intergalactic delivery`
+        }));
+        res.status(200).json({
+            announcement: `🔎 Found doughnut #${productId}! Enjoy the details...`,
+            count: product.length,
+            galacticInventory: product
+        });
     });
 });
 
+// ??
 router.patch('/:productId', (req, res, next) => { // update a product route handle
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
     if (Number.isNaN(productId)) { // if Not-a-number, return error
@@ -203,6 +218,7 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
     });
 });
 
+// ??
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
     if (Number.isNaN(productId)) { // if Not-a-number, error

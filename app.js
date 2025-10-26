@@ -10,7 +10,9 @@ const orderRoutes = require('./api/routes/orders');
 app.use(morgan('dev'));
 
 // request body parsing middleware(s)
-app.use(express.urlencoded({ extended: false })); // parse URL encoded data from incoming request bodies
+app.use(express.urlencoded({ // parse URL encoded data from incoming request bodies
+    extended: false
+}));
 app.use(express.json()); // parse JSON data from incoming request bodies
 
 // CORS Middleware
