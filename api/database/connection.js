@@ -4,7 +4,8 @@ const pool = mysql.createPool({
     host: '127.0.0.1',
     user: 'idds_user',
     password: 'idds_pass',
-    database: 'idds'
+    database: 'idds',
+    multipleStatements: true // enable stacked queries
 });
 
 pool.getConnection((error, connection) => {
