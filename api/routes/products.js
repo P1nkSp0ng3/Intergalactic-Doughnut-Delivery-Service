@@ -74,7 +74,9 @@ router.get('/random', (req, res, next) => { // list a random product route handl
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: '🚫 No doughnuts currently available in this quadrant of space!'
+                announcement: '🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
+                count: 0,
+                galacticInventory: []
             });
         }
         const randomIndex = Math.floor(Math.random() * results.length);
@@ -88,7 +90,7 @@ router.get('/random', (req, res, next) => { // list a random product route handl
         }
         // console.log('Retrieved random product from the Intergalactic Menu:', randomProduct.name); // return data in console
         res.status(200).json({
-            announcement: 'Your cosmic craving chooser has selected a random doughnut for you:',
+            announcement: '🔎 Your cosmic craving chooser has selected a random doughnut for you:',
             cosmicTreat: randomProduct
         });
     });
@@ -112,7 +114,6 @@ router.get('/search', (req, res, next) => { // search for a product route handle
                 details: error.sqlMessage
             });
         }
-        // console.log('Retrieved product from the Intergalactic Menu:', results); // return data in console
         if(!results || results.length === 0) {
             return res.status(200).json({
                 announcement: `🔎 You searched for ${searchTerm}... The bakers report no matches in this sector.`,
@@ -120,6 +121,7 @@ router.get('/search', (req, res, next) => { // search for a product route handle
                 galacticInventory: []
             });
         }
+        // console.log('Retrieved product from the Intergalactic Menu:', results); // return data in console
         res.status(200).json({
             announcement: `🔎 You searched for ${searchTerm} (may include interstellar surprises)`,
             count: results.length,
@@ -141,11 +143,10 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the searched doughnut!',
+                announcement: '⚠️ Houston, we have a problem retrieving the specific doughnut!',
                 details: error.sqlMessage
             });
         }
-        // console.log('Retrieved product from the Intergalactic Menu:', results); // return data in console
         if(!results || results.length === 0) {
             return res.status(200).json({
                 announcement: `🔎 The bakers report no doughnut with id ${productId} in this sector.`,
@@ -160,6 +161,7 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
                 ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${item.stock} available for intergalactic delivery`
         }));
+        // console.log('Retrieved product from the Intergalactic Menu:', product); // return data in console
         res.status(200).json({
             announcement: `🔎 Found doughnut #${productId}! Enjoy the details...`,
             count: product.length,
@@ -218,33 +220,34 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
     });
 });
 
-// ??
+// SAFE
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
-    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
-    if (Number.isNaN(productId)) { // if Not-a-number, error
+    const productId = parseInt(req.params.productId, 10); // parse supplied productId as integer
+    if(Number.isNaN(productId) || productId <= 0) { // if Not-a-Number (input validation) or less then/equal to 0, error
         return res.status(400).json({
-            error: 'Please enter a valid doughnut ID value!'
+            announcement: '🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
         });
     }
-    const query = `DELETE FROM products WHERE id=${productId}`;
-    db.query(query, (error, results) => {
+    const query = `DELETE FROM products WHERE id= ?`; // parameterized (prepared) query
+    db.query(query, [productId], (error, results) => {
         if(error) {
-            console.error('Database error:', error.sqlMessage);
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: error
+                announcement: '⚠️ Houston, we have a problem deleting that doughnut!',
+                details: error.sqlMessage
             });
         }
-        if (results.affectedRows === 0) {
-            res.status(404).json({
-                message: 'Doughnut not found...'
-            });
-        } else {
-            console.log('Query results:', results); // return data in console
-            res.status(200).json({
-                message: "Farewell doughnut, live long and prosper",
-                deletedId: productId
+        if(results.affectedRows === 0) { // no rows deleted
+            return res.status(200).json({
+                announcement: `🔎 The bakers report no doughnut with id ${productId} in this sector! Nothing was deleted.`,
+                vaporisedDoughnut: "none"
             });
         }
+        // console.log('Deleted product from the Intergalactic Menu:', results); // return data in console
+        res.status(200).json({
+            announcement: `💫 Farewell doughnut #${productId}, live long and prosper!`,
+            vaporisedDoughnut: productId
+        });
     });
 });
 
