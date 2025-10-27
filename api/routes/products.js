@@ -36,7 +36,7 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
     });
 });
 
-// ??
+// VULNERABLE
 router.post('/', (req, res, next) => { // create new product route handler
     const product = {
         name: req.body.name, // pull data from request body (via body property)
@@ -44,20 +44,42 @@ router.post('/', (req, res, next) => { // create new product route handler
         price: req.body.price,
         stock: req.body.stock
     };
-    const query = `INSERT INTO products (name, description, price, stock) VALUES ('${product.name}', '${product.description}', '${product.price}', '${product.stock}')`
-    db.query(query, (error, results) => {
+    if(!product.name || !product.description || !product.price || !product.stock) {
+        return res.status(400).json({
+            announcement: '🛸 The bakers require information for this doughnut! Please provide it.'
+        });
+    }
+    const productCheckQuery = `SELECT COUNT(*) AS resultsCount FROM products WHERE name = ?`; // check if product with specified name already exists
+    db.query(productCheckQuery, [product.name], (error, results) => { // check-then-insert
         if(error) {
-            console.error('Database error:', error.sqlMessage);
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: error
+                announcement: '⚠️ Houston, we have a problem creating the doughnut!',
+                details: error.sqlMessage
             });
         }
-        console.log('Query results:', results); // return query results in console
-        product.id = results.insertId;
-        res.status(201).json({
-            message: 'Handling POST calls to /products',
-            createdProduct: product
-        });
+        const exists = (results && results[0] && results[0].resultsCount > 0); // product with specified name already exists
+        if(exists) {
+            return res.status(409).json({
+                announcement: `🚫 A doughnut named ${product.name} already orbits this menu! Aborting creation.`
+            });
+        }
+        setTimeout(() => { // set timeout for artificial delay - only set to help with race-condition exploit
+            const query = `INSERT INTO products (name, description, price, stock) VALUES (?, ?, ?, ?)`
+            db.query(query, [product.name, product.description, product.price, product.stock], (error, results) => {
+                if(error) {
+                    console.error('Galactic database malfunction:', error.sqlMessage);
+                    return res.status(500).json({
+                        announcement: '⚠️ Houston, we have a problem creating the doughnut!',
+                        details: error.sqlMessage
+                    });
+                }
+                res.status(201).json({
+                    announcement: `✨ Doughnut ${product.name} created in the Intergalactic Menu!`,
+                    spawnedDoughnutId: results.insertId
+                });
+            });
+        }, 250); // 250 ms delay
     });
 });
 
