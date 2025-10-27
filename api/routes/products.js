@@ -2,6 +2,29 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 
+function singleDecodeEntities(string) {
+    return string
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#x2F;/gi, '/')
+        .replace(/&#39;/gi, "'");
+};
+function challengeSanitise(input) {
+    if(!input || typeof input !== 'string') return '';
+    let out = singleDecodeEntities(input);
+    out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ''); // remove <script> HTML tags
+    out = out.replace(/\son[a-z]+\s*=\s*(["']?).*?\1/g, ''); // remove lowercase on* attributes (naive, it does NOT handle ONCLICK or encoded names)
+    out = out.replace(/javascript:/g, ''); // naive strip of literal javascript: occurrences (case-sensitive), it leaves JS: in caps, and encoded forms
+    out = out.replace(/data:/g, ''); // strip data: URIs that start plainly (case-sensitive)
+    out = out.replace(/<(\/?)(?!b\b|i\b|u\b|p\b|br\b|img\b)[^>]*>/gi, ''); // remove unwanted tags but allow a small set (b,i,u,p,br,img)
+    out = out.trim();
+    if(out.length > 2000) {
+        out = out.slice(0, 2000);
+    }
+    return out;
+};
+
 // SAFE
 router.get('/', (req, res, next) => { // list all products route handler (uses an arrow function (to define an anonymous function))
     const query = `SELECT * FROM products`;
@@ -9,13 +32,13 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the doughnuts!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the doughnuts!',
                 details: error.sqlMessage
             });
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: '🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
+                announcement: 'Qagh: 🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
                 count: 0,
                 galacticInventory: []
             });
@@ -24,7 +47,7 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
             ...product, // keep all original columns - uses spread syntax to "spread" all key-value pairs from product object into products object
             price: '£' + product.price,
             stock: product.stock === 0 // shorthand if statement using conditional (ternary) operator (overwrites stock value from database)
-                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                ? 'Qagh: 🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${product.stock} available for intergalactic delivery`
         }));
         // console.log('Retrieved products from the Intergalactic Menu:', products); // return data in console
@@ -38,30 +61,52 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
 
 // VULNERABLE
 router.post('/', (req, res, next) => { // create new product route handler
-    const product = {
-        name: req.body.name, // pull data from request body (via body property)
-        description: req.body.description,
-        price: req.body.price,
-        stock: req.body.stock
-    };
-    if(!product.name || !product.description || !product.price || !product.stock) {
+    const name = (req.body.name || '').toString().trim();
+    const rawDescription = req.body.description || '';
+    const rawPrice = req.body.price;
+    const rawStock = req.body.stock;
+    if(!name) {
         return res.status(400).json({
-            announcement: '🛸 The bakers require information for this doughnut! Please provide it.'
+            announcement: 'Qagh: 🛸 The bakers require a name for this doughnut!'
         });
     }
+    if(rawPrice === undefined || rawStock === undefined) {
+        return res.status(400).json({
+            announcement: 'Qagh: 🛸 Please provide both a price and stock count for this doughnut.'
+        });
+    }
+    const price = Number(rawPrice);
+    const stock = parseInt(rawStock, 10);
+    if(!Number.isFinite(price) || price < 0 || price > 999999) { // check supplied price value is a finite number, and within a range
+        return res.status(400).json({
+            announcement: 'Qagh: 🚫 Invalid price value provided.'
+        });
+    }
+    if(!Number.isInteger(stock) || stock < 0 || stock > 1000000) { // check supplied stock value is an integer, and within a range
+        return res.status(400).json({
+            announcement: 'Qagh: 🚫 Invalid stock value provided.'
+        });
+    }
+    const description = challengeSanitise(rawDescription); // input sanitisation and validation for XSS protection
+    const product = { // building the product object
+        name,
+        description,
+        price,
+        stock
+    };
     const productCheckQuery = `SELECT COUNT(*) AS resultsCount FROM products WHERE name = ?`; // check if product with specified name already exists
     db.query(productCheckQuery, [product.name], (error, results) => { // check-then-insert
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem creating the doughnut!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem creating the doughnut!',
                 details: error.sqlMessage
             });
         }
         const exists = (results && results[0] && results[0].resultsCount > 0); // product with specified name already exists
         if(exists) {
             return res.status(409).json({
-                announcement: `🚫 A doughnut named ${product.name} already orbits this menu! Aborting creation.`
+                announcement: `Qagh: 🚫 A doughnut named ${product.name} already orbits this menu! Aborting creation.`
             });
         }
         setTimeout(() => { // set timeout for artificial delay - only set to help with race-condition exploit
@@ -70,7 +115,7 @@ router.post('/', (req, res, next) => { // create new product route handler
                 if(error) {
                     console.error('Galactic database malfunction:', error.sqlMessage);
                     return res.status(500).json({
-                        announcement: '⚠️ Houston, we have a problem creating the doughnut!',
+                        announcement: 'Qagh: ⚠️ Houston, we have a problem creating the doughnut!',
                         details: error.sqlMessage
                     });
                 }
@@ -79,7 +124,7 @@ router.post('/', (req, res, next) => { // create new product route handler
                     spawnedDoughnutId: results.insertId
                 });
             });
-        }, 250); // 250 ms delay
+        }, 250); // 250ms delay
     });
 });
 
@@ -90,13 +135,13 @@ router.get('/random', (req, res, next) => { // list a random product route handl
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the random doughnut!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the random doughnut!',
                 details: error.sqlMessage
             });
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: '🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
+                announcement: 'Qagh: 🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
                 count: 0,
                 galacticInventory: []
             });
@@ -107,7 +152,7 @@ router.get('/random', (req, res, next) => { // list a random product route handl
             ...product,
             price: '£' + product.price,
             stock: product.stock === 0
-                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                ? 'Qagh: 🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${product.stock} available for intergalactic delivery`
         }
         // console.log('Retrieved random product from the Intergalactic Menu:', randomProduct.name); // return data in console
@@ -123,7 +168,7 @@ router.get('/search', (req, res, next) => { // search for a product route handle
     const searchTerm = req.query.term; // pull value from 'term' URL parameter
     if(!searchTerm) {
         return res.status(400).json({
-            announcement: '🛸 The Search Satellites need a query! Please include ?term=your-flavour'
+            announcement: 'Qagh: 🛸 The Search Satellites need a query! Please include ?term=your-flavour'
         });
     }
     const likeTerm = `%${searchTerm}%`; // required for partial matches
@@ -132,13 +177,13 @@ router.get('/search', (req, res, next) => { // search for a product route handle
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the searched doughnut!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the searched doughnut!',
                 details: error.sqlMessage
             });
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: `🔎 You searched for ${searchTerm}... The bakers report no matches in this sector.`,
+                announcement: `Qagh: 🔎 You searched for ${searchTerm}... The bakers report no matches in this sector.`,
                 count: 0,
                 galacticInventory: []
             });
@@ -157,7 +202,7 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
     const productId = parseInt(req.params.productId, 10); // parse supplied productId as integer
     if(Number.isNaN(productId) || productId <= 0) { // if Not-a-Number (input validation) or less then/equal to 0, error
         return res.status(400).json({
-            announcement: '🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
+            announcement: 'Qagh: 🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
         });
     }
     const query = `SELECT * FROM products WHERE id = ?`; // parameterized (prepared) query
@@ -165,13 +210,13 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem retrieving the specific doughnut!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the specific doughnut!',
                 details: error.sqlMessage
             });
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: `🔎 The bakers report no doughnut with id ${productId} in this sector.`,
+                announcement: `Qagh: 🔎 The bakers report no doughnut with id ${productId} in this sector.`,
                 count: 0,
                 galacticInventory: []
             });
@@ -180,7 +225,7 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
             ...item,
             price: '£' + item.price,
             stock: item.stock === 0
-                ? '🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
+                ? 'Qagh: 🚀 Sorry, this doughnut is currently out of stock in this galaxy!'
                 : `🪐 ${item.stock} available for intergalactic delivery`
         }));
         // console.log('Retrieved product from the Intergalactic Menu:', product); // return data in console
@@ -247,7 +292,7 @@ router.delete('/:productId', (req, res, next) => { // delete a product route han
     const productId = parseInt(req.params.productId, 10); // parse supplied productId as integer
     if(Number.isNaN(productId) || productId <= 0) { // if Not-a-Number (input validation) or less then/equal to 0, error
         return res.status(400).json({
-            announcement: '🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
+            announcement: 'Qagh: 🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
         });
     }
     const query = `DELETE FROM products WHERE id= ?`; // parameterized (prepared) query
@@ -255,13 +300,13 @@ router.delete('/:productId', (req, res, next) => { // delete a product route han
         if(error) {
             console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                announcement: '⚠️ Houston, we have a problem deleting that doughnut!',
+                announcement: 'Qagh: ⚠️ Houston, we have a problem deleting that doughnut!',
                 details: error.sqlMessage
             });
         }
         if(results.affectedRows === 0) { // no rows deleted
             return res.status(200).json({
-                announcement: `🔎 The bakers report no doughnut with id ${productId} in this sector! Nothing was deleted.`,
+                announcement: `Qagh: 🔎 The bakers report no doughnut with id ${productId} in this sector! Nothing was deleted.`,
                 vaporisedDoughnut: "none"
             });
         }
