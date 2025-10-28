@@ -237,55 +237,116 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
     });
 });
 
-// ??
+// SAFE
 router.patch('/:productId', (req, res, next) => { // update a product route handle
     const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
-    if (Number.isNaN(productId)) { // if Not-a-number, return error
+    if(Number.isNaN(productId) || productId <= 0) { // if Not-a-number or equal to 0, return error
         return res.status(400).json({
-            error: 'Please enter a valid doughnut ID value!'
+            announcement: `Qagh: 🚫 Invalid doughnut identifier specified!`
         });
     }
-    /*const updates = req.body; // grab the request body
-    if (!updates || Object.keys(updates).length === 0) { // if request body is empty, return error
-        return res.status(400).json({
-            error: 'Please provide doughnut details!'
+    if(!req.body || Object.keys(req.body).length === 0) { // if request body is empty, return error
+        return res.status(400).json({ 
+            announcement: `Qagh: 🚫 Please provide doughnut details!`
         });
-    }*/
-    const allowed = ['name', 'description', 'price', 'stock'];
+    }
+    const allowedParameters = ['name', 'description', 'price', 'stock']; // allowlist
     const updates = {};
-    for (const key of allowed) {
-        if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-            updates[key] = req.body[key];
+    const params = []; // params array to store 'updates' property values to SQL query - parameterised query
+    function htmlEscape(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/\//g, '&#x2F;');
+    }
+    for(const key of allowedParameters) { // iterate over the allowlist values
+        if(Object.prototype.hasOwnProperty.call(req.body, key)) { // check the request body's own properties, not anything inherited from its prototype chain
+            const value = req.body[key];
+            if(key === 'price') {
+                const p = Number(value); // store price in p constant
+                if(!Number.isFinite(p) || p < 0 || p > 999999) {
+                    return res.status(400).json({
+                        announcement: `Qagh: 🚫 Invalid doughnut price.`
+                    });
+                }
+                updates[key] = p.toFixed(2); // price to 2 decimal places
+            } else if(key === 'stock') {
+                const s = parseInt(value, 10);
+                if(!Number.isInteger(s) || s < 0 || s > 1000000) {
+                    return res.status(400).json({
+                        announcement: `Qagh: 🚫 Invalid stock value.`
+                    });
+                }
+                updates[key] = s;
+            } else if(key === 'name' || key === 'description') {
+                const o = String(value).trim();
+                if(key === 'name' && (o.length === 0 || o.length > 255)) { // max character set to 100 at DB level, so this logic should never run
+                    return res.status(400).json({
+                        announcement: `Qagh: 🚫 Doughnut name must be 1-255 characters.`
+                    });
+                }
+                if(key === 'description' && o.length > 2000) {
+                    return res.status(400).json({
+                        announcement: `Qagh: 🚫 Doughnut description too long.`
+                    });
+                }
+                updates[key] = htmlEscape(o);
+            }
+            params.push(updates[key]); // push the updates object's properties to the params array for parameterised SQL query
         }
     }
-    if (Object.keys(updates).length === 0) { // if request body is empty, return error
+    if(Object.keys(updates).length === 0) { // mitigates mass-assignment! Returns an array of the updates object's property names - error if empty (i.e. not in the allowlist)
         return res.status(400).json({
-            error: 'Please provide doughnut details!'
+            announcement: `Qagh: 🚫 No valid fields to update.`
         });
     }
-    const setParts = Object.keys(updates).map(k => {
-        return `${k} = '${updates[k]}'`;
-    });
-    const setClause = setParts.join(', ');
-    const query = `UPDATE products SET ${setClause} WHERE id = ${productId}`;
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error('DB error:', err && err.sqlMessage ? err.sqlMessage : err);
+    const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    params.push(productId);
+    const query = `UPDATE products SET ${setClause} WHERE id = ?`;
+    db.query(query, params, (error, results) => {
+        if(error) {
+            console.error('Galactic database malfunction:', error.sqlMessage);
             return res.status(500).json({
-                error: 'Database error'
+                announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the specific doughnut!',
+                details: error.sqlMessage
             });
         }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({
-                message: 'Product not found'
+        if(!results || results.affectedRows === 0) {
+            return res.status(200).json({
+                announcement: `Qagh: 🔎 The bakers report no doughnut with id ${productId} in this sector.`,
+                count: 0,
+                galacticInventory: []
             });
         }
-        return res.status(200).json({
-            message: 'Product updated',
-            updatedFields: updates
+        // Return canonical updated row
+        const selectSql = `SELECT id, name, description, price, stock FROM products WHERE id = ?`;
+        db.query(selectSql, [productId], (selErr, rows) => {
+            if(selErr) {
+                console.error('Galactic database malfunction:', error.sqlMessage);
+                return res.status(500).json({
+                    announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the specific doughnut!',
+                    details: selErr.sqlMessage
+                });
+            }
+            const product = rows[0];
+            product.price = typeof product.price === 'number'
+                ? Number(product.price.toFixed(2))
+                : Number(parseFloat(product.price).toFixed(2));
+            res.status(200).json({
+                announcement: `✨ Doughnut #${productId} updated successfully!`,
+                product
+            });
         });
     });
 });
+
+
+
+
+
 
 // SAFE
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
