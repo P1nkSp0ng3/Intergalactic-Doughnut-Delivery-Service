@@ -2,29 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/connection');
 
-function singleDecodeEntities(string) {
-    return string
-        .replace(/&lt;/gi, '<')
-        .replace(/&gt;/gi, '>')
-        .replace(/&quot;/gi, '"')
-        .replace(/&#x2F;/gi, '/')
-        .replace(/&#39;/gi, "'");
-};
-function challengeSanitise(input) {
-    if(!input || typeof input !== 'string') return '';
-    let out = singleDecodeEntities(input);
-    out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ''); // remove <script> HTML tags
-    out = out.replace(/\son[a-z]+\s*=\s*(["']?).*?\1/g, ''); // remove lowercase on* attributes (naive, it does NOT handle ONCLICK or encoded names)
-    out = out.replace(/javascript:/g, ''); // naive strip of literal javascript: occurrences (case-sensitive), it leaves JS: in caps, and encoded forms
-    out = out.replace(/data:/g, ''); // strip data: URIs that start plainly (case-sensitive)
-    out = out.replace(/<(\/?)(?!b\b|i\b|u\b|p\b|br\b|img\b)[^>]*>/gi, ''); // remove unwanted tags but allow a small set (b,i,u,p,br,img)
-    out = out.trim();
-    if(out.length > 2000) {
-        out = out.slice(0, 2000);
-    }
-    return out;
-};
-
 // SAFE
 router.get('/', (req, res, next) => { // list all products route handler (uses an arrow function (to define an anonymous function))
     const query = `SELECT * FROM products`;
@@ -38,7 +15,7 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
         }
         if(!results || results.length === 0) {
             return res.status(200).json({
-                announcement: 'Qagh: 🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats - please come back soon.',
+                announcement: 'Qagh: 🛸 Our shelves are temporarily empty! The Galactic Doughnut Chefs are crafting new treats. Please come back soon.',
                 count: 0,
                 galacticInventory: []
             });
@@ -61,6 +38,28 @@ router.get('/', (req, res, next) => { // list all products route handler (uses a
 
 // VULNERABLE
 router.post('/', (req, res, next) => { // create new product route handler
+    function singleDecodeEntities(string) {
+    return string
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&quot;/gi, '"')
+        .replace(/&#x2F;/gi, '/')
+        .replace(/&#39;/gi, "'");
+    };
+    function sanitise(input) {
+        if(!input || typeof input !== 'string') return '';
+        let out = singleDecodeEntities(input);
+        out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ''); // remove <script> HTML tags
+        out = out.replace(/\son[a-z]+\s*=\s*(["']?).*?\1/g, ''); // remove lowercase on* attributes (naive, it does NOT handle ONCLICK or encoded names)
+        out = out.replace(/javascript:/g, ''); // naive strip of literal javascript: occurrences (case-sensitive), it leaves JS: in caps, and encoded forms
+        out = out.replace(/data:/g, ''); // strip data: URIs that start plainly (case-sensitive)
+        out = out.replace(/<(\/?)(?!b\b|i\b|u\b|p\b|br\b|img\b)[^>]*>/gi, ''); // remove unwanted tags but allow a small set (b,i,u,p,br,img)
+        out = out.trim();
+        if(out.length > 2000) {
+            out = out.slice(0, 2000);
+        }
+        return out;
+    };
     const name = (req.body.name || '').toString().trim();
     const rawDescription = req.body.description || '';
     const rawPrice = req.body.price;
@@ -87,7 +86,7 @@ router.post('/', (req, res, next) => { // create new product route handler
             announcement: 'Qagh: 🚫 Invalid stock value provided.'
         });
     }
-    const description = challengeSanitise(rawDescription); // input sanitisation and validation for XSS protection
+    const description = sanitise(rawDescription); // input sanitisation and validation for XSS protection
     const product = { // building the product object
         name,
         description,
@@ -239,31 +238,34 @@ router.get('/:productId', (req, res, next) => { // view a specific product route
 
 // SAFE
 router.patch('/:productId', (req, res, next) => { // update a product route handle
-    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
-    if(Number.isNaN(productId) || productId <= 0) { // if Not-a-number or equal to 0, return error
-        return res.status(400).json({
-            announcement: `Qagh: 🚫 Invalid doughnut identifier specified!`
-        });
-    }
-    if(!req.body || Object.keys(req.body).length === 0) { // if request body is empty, return error
-        return res.status(400).json({ 
-            announcement: `Qagh: 🚫 Please provide doughnut details!`
-        });
-    }
-    const allowedParameters = ['name', 'description', 'price', 'stock']; // allowlist
-    const updates = {};
-    const params = []; // params array to store 'updates' property values to SQL query - parameterised query
-    function htmlEscape(value) {
-        return String(value)
+    function challengeSanitise(input) {
+        let safe = input
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;')
             .replace(/\//g, '&#x2F;');
+        safe = safe.replace(/(?:javascript|vbscript|data)\s*:/gi, '');
+        safe = safe.replace(/\son\w+\s*=/gi, '');
+        return safe.trim();
     }
+    const productId = parseInt(req.params.productId, 10); // pull the productId from the URL parameters using the params object - parse it as an integer
+    if(Number.isNaN(productId) || productId <= 0) { // if Not-a-Number (input validation) or less then/equal to 0, error
+        return res.status(400).json({
+            announcement: 'Qagh: 🚫 Invalid doughnut identifier! Please supply a positive numeric id.'
+        });
+    }
+    if(!req.body || Object.keys(req.body).length === 0) { // if there is no request body or if the request body is empty, return error
+        return res.status(400).json({ 
+            announcement: `Qagh: 🚫 Please provide doughnut details!`
+        });
+    }
+    const allowedParameters = ['name', 'description', 'price', 'stock']; // allowlist
+    const updates = {};
+    const params = []; // params array to store 'updates' property values for SQL query - parameterised query
     for(const key of allowedParameters) { // iterate over the allowlist values
-        if(Object.prototype.hasOwnProperty.call(req.body, key)) { // check the request body's own properties, not anything inherited from its prototype chain
+        if(Object.prototype.hasOwnProperty.call(req.body, key)) { // check if the client sent the property in the body and that the property wasn't inherited from its prototype chain
             const value = req.body[key];
             if(key === 'price') {
                 const p = Number(value); // store price in p constant
@@ -283,7 +285,7 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
                 updates[key] = s;
             } else if(key === 'name' || key === 'description') {
                 const o = String(value).trim();
-                if(key === 'name' && (o.length === 0 || o.length > 255)) { // max character set to 100 at DB level, so this logic should never run
+                if(key === 'name' && o.length === 0 || o.length > 255) { // max character set to 100 at DB level, so this logic should never run
                     return res.status(400).json({
                         announcement: `Qagh: 🚫 Doughnut name must be 1-255 characters.`
                     });
@@ -293,9 +295,9 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
                         announcement: `Qagh: 🚫 Doughnut description too long.`
                     });
                 }
-                updates[key] = htmlEscape(o);
+                updates[key] = challengeSanitise(o);
             }
-            params.push(updates[key]); // push the updates object's properties to the params array for parameterised SQL query
+            params.push(updates[key]); // push the updates object's property values to the params array
         }
     }
     if(Object.keys(updates).length === 0) { // mitigates mass-assignment! Returns an array of the updates object's property names - error if empty (i.e. not in the allowlist)
@@ -321,17 +323,16 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
                 galacticInventory: []
             });
         }
-        // Return canonical updated row
-        const selectSql = `SELECT id, name, description, price, stock FROM products WHERE id = ?`;
-        db.query(selectSql, [productId], (selErr, rows) => {
-            if(selErr) {
+        const selectSQL = `SELECT id, name, description, price, stock FROM products WHERE id = ?`;
+        db.query(selectSQL, [productId], (selectError, selectResults) => {
+            if(selectError) {
                 console.error('Galactic database malfunction:', error.sqlMessage);
                 return res.status(500).json({
                     announcement: 'Qagh: ⚠️ Houston, we have a problem retrieving the specific doughnut!',
-                    details: selErr.sqlMessage
+                    details: selectError.sqlMessage
                 });
             }
-            const product = rows[0];
+            const product = selectResults[0];
             product.price = typeof product.price === 'number'
                 ? Number(product.price.toFixed(2))
                 : Number(parseFloat(product.price).toFixed(2));
@@ -342,11 +343,6 @@ router.patch('/:productId', (req, res, next) => { // update a product route hand
         });
     });
 });
-
-
-
-
-
 
 // SAFE
 router.delete('/:productId', (req, res, next) => { // delete a product route handle
