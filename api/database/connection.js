@@ -9,7 +9,7 @@ const pool = mysql.createPool({
 });
 
 pool.getConnection((error, connection) => {
-    if (error) {
+    if(error) {
         console.error('Error connecting to MySQL:', error.message);
     } else {
         console.log('MySQL pool connected as ID', connection.threadId);

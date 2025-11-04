@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const app = express(); // execute express as a function
 const healthRoutes = require('./api/routes/health');
 const productRoutes = require('./api/routes/products');
+const userRoutes = require('./api/routes/users');
 const orderRoutes = require('./api/routes/orders');
 
 // logging middleware
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
 // API endpoint middleware(s)
 app.use('/health', healthRoutes);
 app.use('/products', productRoutes);
+app.use('/users', userRoutes);
 app.use('/orders', orderRoutes);
 
 // error handling middleware(s)

@@ -1,21 +1,36 @@
-const express = require('express');
+const express = require(`express`);
 const router = express.Router();
+const db = require(`../database/connection`);
 
-// check API health
+// health route handler
 router.get('/', (req, res, next) => {
     try {
-        // <<<<<<<<< -------- include code to check connection to DB -------- >>>>>>>>>
-        res.status(200).json({
-            status: "I'm alive and well! Time to buy some doughnuts... $$$",
-            uptime: process.uptime(), // how long the API has been running (in seconds)
-            timestamp: new Date().toISOString()
+        const startTime = Date.now();
+        const query = `SELECT 1 AS ok`;
+        db.query(query, (error) => { // execute SQL query
+            const dbStatus = error ? `⚠️ Galactic database offline!` : `🍩 Database connection stable!`; // conditional (ternary) operator for shorthand if statement
+            const healthStatus = error ? `⚠️ Critical: Database connection lost!` : `🍩 All systems nominal`; // conditional (ternary) operator for shorthand if statement
+            const responseTime = Date.now() - startTime;
+            if(error) {
+                console.error(`Health check DB failure:`, error.sqlMessage || error.message);
+            }
+            res.status(error ? 503 : 200).json({
+                announcement: `Qagh: ${healthStatus}`,
+                statusReport: {
+                    apiStatus: `🍩 The Intergalactic Doughnut API is standing by and ready for service.`,
+                    databaseStatus: dbStatus,
+                    uptime: `${process.uptime().toFixed(2)} seconds`,
+                    responseTime: `${responseTime}ms`,
+                    timestamp: new Date().toISOString()
+                }
+            });
         });
-    } catch (error) {
-        console.error('API health check failed: ', error);
+    } catch(error) {
+        console.error(`API health check failed:`, error);
         res.status(500).json({
-            status: 'Error',
-            message: "There's something wrong with me! Check the following output to diagnose the cause...",
-            error: error.message
+            announcement: `Qagh: ☠️ Catastrophic failure detected in the doughnut command module!`,
+            errorDetails: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });
