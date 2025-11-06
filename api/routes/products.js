@@ -254,7 +254,7 @@ router.patch(`/:productId`, (req, res, next) => {
             .replace(/'/g, `&#39;`)
             .replace(/\//g, `&#x2F;`);
         safe = safe.replace(/(?:javascript|vbscript|data)\s*:/gi, ``); // strip javascript:, vbscript:, and data: URIs
-        safe = safe.replace(/\son\w+\s*=/gi, ``); // remove on* event handlers
+        safe = safe.replace(/\son\w+\s*=/gi, ``); // remove inline on* event handlers
         return safe.trim();
     }
     const productId = parseInt(req.params.productId, 10); // parse productId as integer

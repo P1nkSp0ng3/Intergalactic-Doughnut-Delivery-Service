@@ -25,11 +25,11 @@ CREATE TABLE users (
     role ENUM('admin','user') NOT NULL DEFAULT 'user'
 );
 
-/*-- seed users
+-- seed users
 INSERT INTO users (username, uuid, password, role) VALUES
-    ('admin', '', 'root', 'admin'),
-    ('alice', '', 'alice123', 'user'),
-    ('bob', '', 'bob123', 'user');*/
+    ('admin', '232c6a21-bb4b-11f0-b688-ddb2cdce6408', 'root', 'admin'),
+    ('alice', '232c6a22-bb4b-11f0-b688-ddb2cdce6408', 'alice123', 'user'),
+    ('bob', '232c6a23-bb4b-11f0-b688-ddb2cdce6408', 'bob123', 'user');
 
 -- --------------------------------------------------------
 --
