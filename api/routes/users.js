@@ -3,6 +3,8 @@ const router = express.Router();
 const { v1: uuidv1 } = require(`uuid`);
 const db = require(`../database/connection`);
 
+// test
+
 // create new user account route handler
 router.post(`/register`, (req, res, next) => {
     function sanitiseInput(input) { // input sanitisation for XSS protection
